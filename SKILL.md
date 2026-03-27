@@ -1,26 +1,300 @@
 ---
 name: viz
-description: "Research visualization assistant with three modes: /viz brainstorm (internalize what to plot via Tukey-inspired questioning), /viz plan (decide how to realize it — plot types, data sources, layout — producing a plot_context.md), and /viz execute (generate, run, and reflect on the code). Use when students mention plotting, figures, graphs, visualization, CDF, scatter plot, box plot, or any figure-making task for a research paper."
+description: "Research visualization assistant with six modes: /viz ingest (understand the data schema), /viz explore (disposable plots to build intuition), /viz brainstorm (internalize what to plot via Tukey-inspired questioning), /viz plan (decide how to realize it — plot types, data sources, layout — producing a plot_context.md), /viz execute (generate and run the code), and /viz analyze (first-principles feedback on the generated figure). Use when students mention plotting, figures, graphs, visualization, CDF, scatter plot, box plot, or any figure-making task for a research paper."
 ---
 
-# Visualization Skill — Brainstorm → Plan → Execute
+# Visualization Skill — Ingest → Explore → Brainstorm → Plan → Execute → Analyze
 
-This skill helps you create research-quality visualizations through a three-phase workflow. Each phase must complete before the next begins. The philosophy: internalize *what* you want to show and *why* before touching any code.
+This skill helps you create research-quality visualizations through a six-phase workflow. The philosophy: *let the data do the talking* before you decide what to say, internalize *what* you want to show and *why* before touching any production code, and *validate what the figure actually says* against what you intended.
 
 **Modes:**
+- `/viz ingest` — Understand what you have: schema, shape, quality (structural)
+- `/viz explore` — Look at the data from multiple angles with disposable plots (intuitive)
 - `/viz brainstorm` — Think through what you are trying to visualize (philosophical)
 - `/viz plan` — Decide how to realize it: plot type, layout, data source (mechanistic)
-- `/viz execute` — Generate, run, and reflect on the code (operational)
+- `/viz execute` — Generate and run the code (operational)
+- `/viz analyze` — Reflect on the figure and validate against your hypothesis (critical)
 
-If the student invokes `/viz` without a mode, ask which mode they want. If they seem unsure, start with brainstorm.
+**Not every figure requires all six modes.** The early modes (Ingest, Explore, Brainstorm) are designed to build the intuition that experienced researchers already have. If you already know your data and have a clear visualization intent, you can skip straight to `/viz plan` — optionally writing your own `braindump.md` to capture your intent, which Plan and Execute will pick up automatically.
+
+If the student invokes `/viz` without a mode, assess where they are:
+- They have raw data and aren't sure what's in it → suggest `/viz ingest`
+- They know their data but haven't looked at it yet → suggest `/viz explore`
+- They've explored but haven't articulated what they want to show → suggest `/viz brainstorm`
+- They know exactly what figure they need → suggest `/viz plan`
+- They have a `plot_context.md` ready → suggest `/viz execute`
+- They have a figure and want feedback → suggest `/viz analyze`
 
 ---
 
-## Mode 1: Brainstorm — "What are you trying to see?"
+## Mode 0: Ingest — "What do you have?"
+
+**Purpose:** Understand the structure, shape, and quality of the data before looking at it visually. This is the mechanical foundation — you cannot explore what you do not understand structurally.
+
+**Start at the command line, not in Python.** Before importing anything, use basic Unix tools to look at the raw data. This builds a concrete, unmediated sense of what the file contains — how big it is, what the columns look like, whether there are obvious problems. Many students skip this step and go straight to `pd.read_csv()`, missing issues that are visible at a glance in the terminal.
+
+### Step 1: Locate the data
+
+Ask the student:
+
+> Where is your data? Give me the path to the file(s) — CSV, Parquet, JSON, pickle, or a directory of results.
+
+### Step 2: CLI first look
+
+For CSV/TSV files, run these commands to build a raw picture of the data before opening Python. **Show the student the commands and their output** — teaching them to do this themselves is part of the skill:
+
+```bash
+# How big is it?
+wc -l data.csv                    # row count (including header)
+ls -lh data.csv                   # file size
+
+# What does it look like?
+head -5 data.csv                  # first 5 lines (header + 4 rows)
+tail -5 data.csv                  # last 5 lines
+
+# What are the columns?
+head -1 data.csv | tr ',' '\n' | nl   # numbered column list
+
+# How many columns?
+head -1 data.csv | awk -F',' '{print NF}'
+
+# Quick frequency table for a categorical column (e.g., column 3)
+cut -d, -f3 data.csv | tail -n+2 | sort | uniq -c | sort -rn | head -10
+
+# Quick min/max for a numeric column (e.g., column 4)
+cut -d, -f4 data.csv | tail -n+2 | sort -n | head -1    # min
+cut -d, -f4 data.csv | tail -n+2 | sort -n | tail -1    # max
+
+# Check for empty fields
+grep -c ',,' data.csv
+
+# Check for duplicate rows
+sort data.csv | uniq -d | wc -l
+```
+
+A full CLI cheat sheet is available at `reference/cli_data_inspection.md` with one-liners for statistics, data quality checks, filtering, and sampling.
+
+For binary formats (Parquet, pickle), skip the CLI step and go directly to Step 3.
+
+### Step 3: Read and report the schema
+
+After the CLI first look, load the data in Python for a structured summary:
+
+1. **Read the file** (or a sample: first 20 rows + dtypes + shape).
+2. **Report the schema** back to the student: column names, data types, number of rows, any obvious issues (NaN counts, mixed types, suspicious min/max values).
+3. **Ask clarifying questions** about the schema:
+   - "What does each column represent? Are there columns I should ignore?"
+   - "What are the units for the numeric columns?"
+   - "What generated this data? (experiment, simulation, measurement, survey)"
+   - "Are there multiple experimental conditions, configurations, or runs? Which columns encode them?"
+   - "Is there any filtering needed? (e.g., exclude warm-up, specific configs only)"
+
+### Step 4: Flag data quality issues
+
+Report anything that could affect downstream analysis:
+
+- **Missing data:** Which columns have NaNs? What fraction? Is missingness random or systematic?
+- **Scale issues:** Are there columns spanning many orders of magnitude (suggesting log scale later)?
+- **Duplicates or near-duplicates:** Repeated rows that might indicate measurement artifacts.
+- **Type mismatches:** Numeric columns stored as strings, timestamps as integers, etc.
+- **Suspicious values:** Min/max outliers, negative values in columns that should be positive, etc.
+
+### Step 5: Save data_summary.md
+
+Save a structured summary of the data for use in later modes:
+
+```markdown
+# Data Summary
+
+## Source
+- **Path:** [path to data file(s)]
+- **Format:** [CSV / Parquet / JSON / etc.]
+- **Generated by:** [experiment / simulation / measurement / etc.]
+
+## Schema
+| Column | Type | Unit | Description | Issues |
+|--------|------|------|-------------|--------|
+| [name] | [dtype] | [unit] | [what it represents] | [NaN count, suspicious values, etc.] |
+
+## Shape
+- **Rows:** [count]
+- **Columns:** [count]
+- **Experimental conditions:** [list of conditions/configs and how they are encoded]
+
+## Quality Notes
+- [Any issues flagged in Step 3]
+- [Filtering applied or recommended]
+```
+
+Tell the student: "Your data summary is saved at [path]. Run `/viz explore` to start looking at this data visually."
+
+**Output of ingest mode:** A `data_summary.md` file containing the structural understanding of the data.
+
+---
+
+## Mode 1: Explore — "Let the data do the talking"
+
+**Purpose:** Build intuition about the data through quick, disposable visualizations before forming any hypotheses or committing to a plot type. This is Tukey's core principle: *look at the data from multiple angles and let it tell you what's interesting.* The plots generated here are throwaway — speed and coverage matter, not aesthetics.
+
+**This mode generates code and plots, but they are explicitly disposable.** Do not apply publication formatting. Use seaborn defaults for speed. The goal is to *see*, not to *present*.
+
+**Seaborn is the primary tool for this mode.** It provides high-level functions that generate informative plots with minimal code — exactly what you need for fast exploration. The [seaborn tutorial](https://seaborn.pydata.org/tutorial.html) is an excellent reference for understanding what each function does and when to use it.
+
+**First:** Look for a `data_summary.md` in the working directory. If one exists, read it to understand the schema. If not, do a quick schema read (as in Ingest Step 3) before proceeding.
+
+### Step 1: Univariate overview — "What does each variable look like?"
+
+For each numeric column (or the most important ones if there are many), generate quick views of the distribution. **Show the student the code** — learning these one-liners is part of the skill:
+
+```python
+import seaborn as sns; sns.set_theme()
+import pandas as pd
+
+df = pd.read_csv("data.csv")
+
+# Histogram with KDE overlay — most intuitive first look
+sns.histplot(df, x="column_name", kde=True)
+
+# ECDF — zero tuning parameters, shows every data point directly
+sns.displot(df, x="column_name", kind="ecdf")
+
+# KDE — smooth density, easy to compare groups
+sns.kdeplot(df, x="column_name", hue="group_column")
+
+# Compare distributions across groups — faceted histograms
+sns.displot(df, x="column_name", col="group_column", kde=True)
+```
+
+**Which distribution plot to use:**
+
+| Function | Best for | Watch out for |
+|----------|----------|---------------|
+| `histplot` | First look, seeing actual counts | Sensitive to bin size — try different values |
+| `kdeplot` | Smooth comparison across groups | Misleading on discrete data; assumes continuous unbounded |
+| `ecdfplot` | Safest "just show me the data" option | Less intuitive shape; bimodality shows as slope changes |
+
+Also check:
+- **Summary statistics** — Mean, median, std, min, max, and the ratio of mean to median (a quick skewness indicator).
+- **Log-scale check** — If the data spans more than 2 orders of magnitude, also plot on log scale. Does structure appear that was hidden on linear scale?
+- For categorical columns: `sns.countplot(df, x="category_column")` for frequency counts.
+
+### Step 2: Bivariate relationships — "How do variables relate?"
+
+Generate quick views of how variables relate to each other:
+
+```python
+# The single most powerful EDA one-liner — all pairwise relationships
+sns.pairplot(df, hue="group_column")
+
+# Scatter plot with grouping
+sns.scatterplot(df, x="col_x", y="col_y", hue="group_column")
+
+# Joint plot — scatter with marginal distributions
+sns.jointplot(df, x="col_x", y="col_y", hue="group_column")
+
+# Scatter with regression line and confidence interval
+sns.lmplot(df, x="col_x", y="col_y", hue="group_column")
+
+# Correlation heatmap — for many numeric columns
+sns.heatmap(df.select_dtypes("number").corr(), annot=True)
+
+# Group comparisons — box plots split by category
+sns.boxplot(df, x="group_column", y="value_column")
+
+# See every point — swarm plot (small datasets only)
+sns.swarmplot(df, x="group_column", y="value_column")
+
+# Full distribution shape per group
+sns.violinplot(df, x="group_column", y="value_column")
+```
+
+**Choosing the right categorical comparison:**
+
+| Function | Best for | Avoid when |
+|----------|----------|------------|
+| `boxplot` | Quick summary — median, quartiles, outliers | You need to see the full distribution shape |
+| `violinplot` | Seeing the full distribution shape | Very small N per group (shape is meaningless) |
+| `swarmplot`/`stripplot` | Seeing every individual data point | Large N (too many points overlap) |
+| `barplot` | Comparing means across categories | **CAUTION: hides distribution — prefer box/violin** |
+
+### Step 3: Temporal or sequential structure
+
+If the data has a time or sequence dimension:
+
+```python
+# Line plot — auto-aggregates repeated observations with CI band
+sns.relplot(df, x="time_column", y="value_column", kind="line")
+
+# Multiple series with grouping
+sns.relplot(df, x="time_column", y="value_column", kind="line", hue="group_column")
+
+# Faceted by condition
+sns.relplot(df, x="time_column", y="value_column", kind="line",
+            hue="group_column", col="condition_column")
+```
+
+Also check:
+1. **Stationarity** — Does the distribution change across the time range? (Plot rolling mean/std.)
+2. **Different time scales** — Zoom in and zoom out. Patterns visible at one granularity may vanish at another.
+3. **Noisy data** — Try smoothed line (rolling median) with raw data in the background.
+
+### Step 4: Ask the student what they notice
+
+After generating the exploratory plots, ask:
+
+> Look at these plots. Before I say anything:
+> 1. **What jumps out at you?** What patterns do you see?
+> 2. **What surprises you?** Is anything different from what you expected?
+> 3. **What's missing?** Is there a view of the data you want to see that we haven't generated?
+> 4. **Does the data look right?** Are there artifacts, outliers, or issues that suggest a problem with the experiment itself?
+
+**Critical:** If the student's answers to question 4 suggest the data is flawed — wrong variables measured, insufficient coverage, confounds, measurement artifacts — flag this explicitly:
+
+> "Based on what we're seeing, it might be worth revisiting the experiment before making figures. Specifically: [describe the issue]. Would you like to discuss what additional data you'd need, or do you want to proceed with what you have?"
+
+Going back to collect better data is a valid and valuable outcome of exploration. It is better to discover this now than after producing a polished figure from flawed data.
+
+### Step 5: Save exploration_log.md
+
+Save a record of what was observed:
+
+```markdown
+# Exploration Log
+
+## Data
+- **Source:** [path, or reference to data_summary.md]
+- **Date explored:** [date]
+
+## Key Observations
+- [What patterns were visible in the univariate distributions]
+- [Notable bivariate relationships or group differences]
+- [Temporal structure, if applicable]
+
+## Surprises
+- [Anything unexpected — this is the most valuable section]
+
+## Data Quality Concerns
+- [Any issues discovered during exploration]
+- [Whether the data is sufficient or the experiment needs revisiting]
+
+## Questions Raised
+- [New questions that emerged from looking at the data]
+- [Specific views the student wants to investigate further]
+```
+
+Tell the student: "Your exploration log is saved at [path]. When you're ready to articulate what you want to show, run `/viz brainstorm`. Or if you already know, you can write your own `braindump.md` and go straight to `/viz plan`."
+
+**Output of explore mode:** An `exploration_log.md` and a set of disposable plots. The log captures observations and surprises that feed forward into brainstorming.
+
+---
+
+## Mode 2: Brainstorm — "What are you trying to see?"
 
 **Purpose:** Help the student internalize the visualization goal before any code is written. This mode is interactive and Socratic — you ask questions, the student answers, and together you refine until the visualization intent is crystal clear.
 
 **Do NOT write any code in this mode. Do NOT suggest plot types yet. The goal is purely intellectual clarity.**
+
+**If the student has completed Explore mode**, the `exploration_log.md` will contain observations and surprises that can seed this conversation. Read it if available — the student's answers to the Tukey questions will be richer if grounded in what they actually saw in the data.
 
 ### Step 1: Open with the Tukey question
 
@@ -56,7 +330,7 @@ Ask: "Does that capture it? Anything missing or wrong?"
 
 If the student confirms, save the synthesis as a `braindump.md` file in the working directory, then tell them they are ready for `/viz plan`. If there are gaps, ask follow-up questions until the intent is clear.
 
-**Output of brainstorm mode:** A `braindump.md` file that captures the full brainstorm synthesis. This file serves as durable context that carries forward into plan and execute modes — the student (or a new conversation) can pick up from here without losing any of the thinking.
+**Output of brainstorm mode:** A `braindump.md` file that captures the full brainstorm synthesis. This file serves as durable context that carries forward into plan and execute modes — the student (or a new conversation) can pick up from here without losing any of the thinking. Experienced students who know what they want can also write their own `braindump.md` directly and skip to `/viz plan`.
 
 ```markdown
 # Visualization Braindump
@@ -83,29 +357,28 @@ If the student confirms, save the synthesis as a `braindump.md` file in the work
 
 ---
 
-## Mode 2: Plan — "How should we realize it?"
+## Mode 3: Plan — "How should we realize it?"
 
 **Purpose:** Translate the intellectual intent from brainstorm mode into concrete technical decisions: plot type, layout, data source, and visual encoding. This mode produces a `plot_context.md` file that contains everything needed for execution.
 
-**First:** Look for a `braindump.md` in the working directory. If one exists, read it to load the brainstorm context. If none exists and the student hasn't completed brainstorm mode, suggest they run `/viz brainstorm` first. If the student wants to skip brainstorm, proceed but note that the plan will be weaker without upfront thinking.
+**First:** Look for prior artifacts in the working directory:
+- **`braindump.md`** — If it exists, read it to load the brainstorm context (intent, predictions, audience).
+- **`data_summary.md`** — If it exists, read it to load the data schema and quality notes.
+- **`exploration_log.md`** — If it exists, read it to understand what the student has already observed.
 
-### Step 1: Locate and inspect the data
+If none of these exist and the student hasn't completed earlier modes, suggest they start with `/viz brainstorm` at minimum. If the student wants to skip ahead, proceed — experienced students may carry all this context in their head.
 
-Ask the student:
+### Step 1: Confirm the data and variable mappings
 
-> Where is your data? Give me the path to the file(s) — CSV, Parquet, JSON, pickle, or a directory of results.
+If `data_summary.md` exists, reference it and ask the student to confirm the variable mappings for this specific figure:
 
-Once you have the path:
+> Based on your data summary, let's decide what goes where:
+> - "Which column is the independent variable (x-axis)?"
+> - "Which column is the dependent variable (y-axis)?"
+> - "Which column(s) define the groups you want to compare?"
+> - "Any additional filtering beyond what's already noted?"
 
-1. **Read the file** (or a sample: first 20 rows + dtypes + shape).
-2. **Report the schema** back to the student: column names, data types, number of rows, any obvious issues (NaN counts, mixed types, suspicious min/max values).
-3. **Ask clarifying questions** about the schema:
-   - "Which column is the independent variable (x-axis)?"
-   - "Which column is the dependent variable (y-axis)?"
-   - "Which column(s) define the groups you want to compare?"
-   - "Are there any columns I should ignore?"
-   - "What are the units for each axis?"
-   - "Is there any filtering needed? (e.g., exclude warm-up, specific configs only)"
+If `data_summary.md` does not exist, locate and inspect the data directly: ask for the path, read a sample (first 20 rows + dtypes + shape), report the schema, and ask the clarifying questions above.
 
 ### Step 2: Recommend a plot type
 
@@ -195,9 +468,9 @@ Save this file and tell the student: "Your plot context is saved at [path]. Revi
 
 ---
 
-## Mode 3: Execute — "Generate, run, and reflect"
+## Mode 4: Execute — "Generate and run the code"
 
-**Purpose:** Generate the plotting code based on `plot_context.md`, execute it, and then force post-visualization reflection using the WALTER principle.
+**Purpose:** Generate the plotting code based on `plot_context.md` and execute it. This mode is purely operational — code generation, debugging, and producing the figure. All reflection and analysis happen in the next mode.
 
 ### Step 1: Locate the plot context
 
@@ -252,58 +525,106 @@ plt.rcParams['axes.prop_cycle'] = cycler(color=colors)
 
 Execute the script. If it fails, diagnose and fix. If the data path is wrong or the schema doesn't match, tell the student what went wrong and how to fix it.
 
-### Step 4: WALTER reflection
+Once the figure is generated, tell the student: "Your figure is saved at [path]. Run `/viz analyze` to reflect on what it shows and validate it against your hypothesis."
 
-After the figure is generated and visible, **do not let the student move on**. Force the WALTER narration:
+**Output of execute mode:** A saved figure and the Python script that generated it.
 
-> The figure is generated. Before we call it done, let's WALTER it. Please answer each of these — or I'll draft answers and you tell me if they're right:
+---
+
+## Mode 5: Analyze — "What is this figure really telling you?"
+
+**Purpose:** Close the loop between intent and outcome. This mode has two phases: first the student articulates what they see (so the skill doesn't anchor their thinking), then the skill provides substantive feedback by cross-referencing the figure against all accumulated context — the predictions from brainstorm, the design rationale from plan, and the first principles (Tukey, Tufte, WALTER) encoded throughout the skill.
+
+This is the mode that turns a plotting exercise into a learning experience. Without it, students produce figures and move on. With it, they are forced to confront whether the figure actually says what they think it says.
+
+**First:** Load all prior artifacts:
+- **`braindump.md`** — The student's predictions, surprise conditions, and intended claim.
+- **`plot_context.md`** — The design rationale, variable mappings, and intended question.
+- **`exploration_log.md`** — What the student observed during exploration (if available).
+- **The generated figure** — Read the image to analyze what it actually shows.
+
+### Step 1: Student interpretation first
+
+**Do not offer any analysis yet.** Ask the student to look at the figure and share their reading of it:
+
+> The figure is generated. Before I share my analysis, I want to hear yours. Look at the plot and tell me:
+> 1. **What do you see?** Describe the main pattern in your own words.
+> 2. **Does it match what you predicted?** Go back to your prediction — were you right?
+> 3. **What surprises you?** Is there anything you didn't expect?
+> 4. **What is the one-sentence takeaway?** If you had to caption this figure right now, what would you write?
+
+Listen carefully. The student's answers reveal how well they understand what the figure shows — and where the gaps are.
+
+### Step 2: WALTER narration
+
+Now walk through the structured WALTER narration together. Draft answers based on the accumulated context and ask the student to confirm or correct:
+
+> Let's WALTER this figure to make sure we have a complete understanding:
 >
 > **W — What is the hypothesis?**
-> [Draft based on the brainstorm/plan context]
+> [Draft from braindump.md — the question and prediction the student articulated]
 >
 > **A — Axes: what do x and y represent?**
-> [State the axes from the plot context]
+> [State from plot_context.md — column names, units, and what they measure]
 >
 > **L — Look here: where should the viewer focus?**
-> [Ask the student, or suggest based on what the plot shows]
+> [Suggest based on what the plot actually shows — the region that carries the most information]
 >
 > **T — Trend: what is the dominant pattern?**
-> [Ask the student to describe what they see]
+> [Describe what the figure shows — incorporate the student's answer from Step 1]
 >
 > **E — Exception: what breaks the pattern, and why?**
-> [Ask explicitly: "Is there anything that surprises you or breaks the trend?"]
+> [Flag anything that deviates from the trend — outliers, crossover points, unexpected groups]
 >
 > **R — Result: what is the takeaway? Does it connect back to W?**
-> [Ask the student to close the loop]
+> [Close the loop — does the result answer the original hypothesis?]
 
-If the student's answers reveal that the figure does not actually support the intended claim (the R doesn't connect to the W), flag it:
+### Step 3: First-principles feedback
 
-> "It sounds like the result doesn't quite match the hypothesis. This is actually a good thing — it means the data is telling you something you didn't expect. Should we: (a) revise the claim to match the data, (b) investigate the discrepancy with a follow-up exploration, or (c) adjust the visualization to better show the actual pattern?"
+Now provide substantive analysis by applying the principles encoded in this skill. This is where the skill adds value beyond what the student can do alone — it systematically checks the figure against multiple lenses:
 
-### Step 5: Post-visualization checks
+**Tukey lens — Exploration and surprise:**
+- **Prediction vs. reality.** Compare what the student predicted in `braindump.md` against what the figure actually shows. If the prediction was correct, acknowledge it but ask: "Is there anything *beyond* the expected pattern worth noting?" If the prediction was wrong, flag it explicitly: "You predicted [X], but the figure shows [Y]. This discrepancy is worth investigating — it may be more interesting than the original hypothesis."
+- **Residual thinking.** "If you removed the dominant pattern from this figure, what would be left? Are there subgroups where the effect is much stronger or weaker than average? The overall trend may be masking important variation."
+- **Re-expression.** Would the same data on a different scale (log, sqrt, reciprocal) reveal structure that is hidden here? If the data spans orders of magnitude, suggest trying log scale. If it's a proportion, suggest logit.
 
-After WALTER, run through these quick checks:
+**Tufte lens — Compliance with visualization principles:**
 
-> **Representation honesty:**
-> - Does the axis scale faithfully show the data, or is it hiding structure? (Check: would log scale reveal more?)
-> - Are you summarizing away important information? (Check: should you show the distribution, not just the mean?)
-> - Would a different plot type reveal something this one hides?
+Audit the generated figure against Tufte's principles and report specific findings:
+
+- **Data-ink ratio.** Examine the figure for non-data ink. Are there decorative elements (background fills, 3D effects, heavy borders, ornamental gridlines) that could be removed without losing information? Every mark should encode data. If the figure has a low data-ink ratio, identify what should be removed.
+- **Chartjunk check.** Flag specific violations: unnecessary legends (if there's only one series), redundant axis labels, overly prominent gridlines, drop shadows, gradient fills, or any element that distracts from the data itself.
+- **Scale integrity.** Does the axis scale faithfully show the data? Is the baseline appropriate (does it start at zero for bar charts)? Would a truncated axis exaggerate small differences? Does the lie factor — the ratio of visual effect size to data effect size — stay close to 1.0? Would log scale reveal patterns hidden on linear scale?
+- **Over-summarization.** If the plot shows means or medians: "Are you summarizing away the story? The distribution might be bimodal, or the variance across groups might be the most interesting finding. Consider showing the full distribution (box plot, violin, or CDF) instead of just the central tendency." A bar chart of means is almost always the wrong choice — flag it explicitly.
+- **Small multiples.** If the figure crams too many series into one panel (multiple hues, sizes, and styles that become hard to read), recommend faceted small multiples instead. Several simple, consistent panels that the eye can compare at a glance are almost always more effective than one complex, overloaded plot.
+- **Alternative representations.** "Would a different plot type reveal something this one hides?" Suggest at least one concrete alternative and explain what it would show differently. If the student used a bar chart, suggest a box plot. If they used overlaid CDFs with many lines, suggest faceted panels. If they used a scatter plot with thousands of points, suggest a 2D KDE or hexbin.
+- **Typography and labeling.** Are axis labels present with units? Are font sizes readable at the intended print size? Is the legend necessary, and if so, is it placed where it doesn't occlude data? Are tick labels uncluttered (no overlapping, no unnecessary decimal places)?
+
+**Hypothesis validation:**
+- Cross-reference the figure against the specific claim from `braindump.md` (the "paper sentence" the figure is supposed to support). Does the figure actually support it? Be honest: "The claim says [X], but the figure shows [Y]. You may need to revise the claim, or produce a different figure that directly tests it."
+- If the figure supports the claim, stress-test it: "A skeptical reviewer would focus on [aspect]. Can you defend it? Is there a confound that could explain the pattern?"
+
+**Completeness check:**
+- Are there conditions, groups, or variables from `data_summary.md` that are *not* shown in this figure but could change the interpretation?
+- Would a companion figure (e.g., same data, different plot type; same plot type, different grouping) strengthen or undermine the current figure's message?
+
+### Step 4: Suggest next steps
+
+Based on the analysis, recommend one of:
+
+> **a) The figure validates the hypothesis.** "The result connects back to the prediction. This figure is ready for the paper. Here's a draft caption: [interpretive caption that states the takeaway, not just the axes]."
 >
-> **Paper readiness (if this is a paper figure):**
-> - Is the caption interpretive, not just descriptive?
-> - Is the figure referenced by a specific sentence in the text?
-> - What would a skeptical reviewer focus on?
+> **b) The figure tells a different story.** "The data doesn't match the prediction — but the actual pattern is [describe]. This might be more interesting than the original hypothesis. Consider revising the claim to match what the data actually shows."
 >
-> **Iteration needed?**
-> - Should we try a different plot type for comparison?
-> - Should we add/remove annotations?
-> - Should we adjust axis limits, add error bars, or change the grouping?
+> **c) The figure is inconclusive.** "The pattern is ambiguous — it could support the claim or not, depending on [factor]. You may need additional data, a different grouping, or a follow-up figure to resolve this."
+>
+> **d) The representation needs revision.** "The figure makes a point, but the current plot type / scale / grouping doesn't show it as clearly as it could. Consider [specific change] and re-run `/viz execute`."
+>
+> **e) Go back to exploration.** "What we're seeing suggests a different question than the one you started with. Consider going back to `/viz explore` to investigate [specific observation] before committing to a paper figure."
 
-If the student wants to iterate, loop back to the relevant step (adjust code, re-run, re-WALTER). Save the final WALTER narration as a comment block at the top of the script for future reference.
+### Step 5: Save the analysis
 
-### Step 6: Save the WALTER narration
-
-Append the WALTER narration to `plot_context.md` under a new section:
+Append the full analysis to `plot_context.md` under new sections:
 
 ```markdown
 ## WALTER Narration
@@ -314,12 +635,21 @@ Append the WALTER narration to `plot_context.md` under a new section:
 - **E (Exception):** [...]
 - **R (Result):** [...]
 
-## Post-Visualization Notes
-- [Any observations, surprises, or follow-up questions]
+## First-Principles Feedback
+- **Prediction vs. reality:** [match/mismatch and implications]
+- **Residual analysis:** [what remains after removing the dominant pattern]
+- **Representation honesty:** [scale, over-summarization, alternative plot types]
+- **Hypothesis validation:** [does the figure support the claim? reviewer stress-test]
+
+## Next Steps
+- [Recommended action: finalize / revise claim / iterate on figure / go back to explore]
+
+## Post-Analysis Notes
+- [Any additional observations, surprises, or follow-up questions]
 - [Iteration history if multiple versions were generated]
 ```
 
-This creates a complete record: intent → plan → execution → reflection.
+This creates a complete record: intent → plan → execution → analysis → next steps.
 
 ---
 
