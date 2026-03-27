@@ -31,7 +31,7 @@ Every mark on a figure should encode data. Remove chartjunk, maximize the ratio 
 
 ### The WALTER Principle — Narrating the Visual Story
 
-Developed in the Gupta Research Group at UC Santa Barbara as a lab norm for presenting figures. **WALTER** is an acronym for a structured walkthrough that must accompany every figure shared in a meeting, on Slack, or in a paper:
+WALTER is a structured figure narration framework that has been a common practice in systems and networking research for years. The acronym provides a walkthrough that should accompany every figure shared in a meeting, on Slack, or in a paper:
 
 | Letter | Question |
 |--------|----------|
@@ -185,7 +185,7 @@ The skill ships with formatting defaults tuned for systems and networking venues
 |--------|-------------|------------------|
 | Tukey, *Exploratory Data Analysis* (1977) | Explore before confirm; predict before plot; residual analysis; re-expression; the box plot | Brainstorm mode, questionnaire Part 2 |
 | Tufte, *The Visual Display of Quantitative Information* (1983) | Data-ink ratio; chartjunk removal; small multiples | Execute mode defaults, Lab Standards |
-| Gupta Lab, WALTER principle (2025) | Structured figure narration; comprehension self-test | Execute mode Step 4, questionnaire Part 5 |
+| WALTER principle (common practice in systems/networking research) | Structured figure narration; comprehension self-test | Execute mode Step 4, questionnaire Part 5 |
 | Seaborn documentation | Function taxonomy; plot type selection guidance | Plan mode decision tree |
 | Matplotlib best practices | rcParams configuration; publication sizing | Execute mode code generation, `matplotlib_defaults.py` |
 

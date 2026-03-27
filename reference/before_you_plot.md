@@ -1,6 +1,6 @@
 # Before You Plot: A Questionnaire
 
-*Adapted from John W. Tukey's Exploratory Data Analysis (1977) and the WALTER principle (Gupta Lab) for systems and networking research. Answer these questions before you write any plotting code — and after you finish.*
+*Adapted from John W. Tukey's Exploratory Data Analysis (1977) and the WALTER principle (a common practice in systems and networking research) for research visualization. Answer these questions before you write any plotting code — and after you finish.*
 
 ---
 
@@ -120,7 +120,7 @@ Close the loop back to **W**. "The result is that our hypothesis holds — linea
 
 The WALTER narration is not just a presentation trick. It is a *comprehension test*. If you cannot write a WALTER paragraph for your figure, you do not yet understand what the figure shows. The act of writing it will expose gaps in your understanding — you will discover that you cannot state the trend clearly, or that you have not noticed the exception, or that the result does not actually connect back to the hypothesis. These are exactly the gaps that your advisor or a reviewer will find. Better to find them yourself.
 
-**When you share a figure on Slack, in a meeting, or in a draft, always WALTER it.** This is a lab norm, not a suggestion. The WALTER text controls where the viewer focuses attention and ensures that the figure's message is received as intended, not left to interpretation.
+**When you share a figure on Slack, in a meeting, or in a draft, always WALTER it.** The WALTER text controls where the viewer focuses attention and ensures that the figure's message is received as intended, not left to interpretation.
 
 ---
 
@@ -140,4 +140,4 @@ The goal is not to fill out this questionnaire like a checklist. The goal is to 
 
 *"It is important to understand what you CAN DO before you learn to measure how WELL you seem to have DONE it." — John W. Tukey, 1977*
 
-*"Always WALTER it to control where you'd like the viewer focus attention." — Arpit Gupta, 2025*
+*"Always WALTER it to control where you'd like the viewer focus attention."*
