@@ -228,6 +228,34 @@ The skill ships with formatting defaults tuned for systems and networking venues
 
 **Self-contained.** Every reference file works independently. You don't need Claude Code to use the questionnaire, the plot context template, or the matplotlib defaults. The skill enhances the workflow but doesn't gate it.
 
+## Part of a Research Skills Family
+
+This skill belongs to a family of three Claude Code skills built by the [Systems and Networking Lab (SNL)](https://github.com/SNL-UCSB) at UC Santa Barbara. Together they cover the core research pipeline — reading the literature, visualizing data, and writing the paper. The design philosophy behind the family is described in [*Systems for Agents, Agents for Systems*](https://sites.cs.ucsb.edu/~arpitgupta/blog/systems-for-agents-agents-for-systems.html).
+
+| Skill | What it compresses | What it protects |
+|-------|-------------------|-----------------|
+| [**literature-survey-skill**](https://github.com/SNL-UCSB/literature-survey-skill) | Paper ingestion, claim extraction, cross-referencing | Hypothesis formation, gap recognition, critical reading |
+| **data-visualization-skill** (this repo) | Plot formatting, code generation, layout mechanics | Deciding what to show, whether representations are honest, what the figure means |
+| [**paper-writing-skill**](https://github.com/SNL-UCSB/paper-writing-skill) | Section structure, voice consistency, page compression | Argument construction, positioning, intellectual contribution |
+
+### Shared intellectual spine
+
+All three skills operate under one principle: **bridge the gap between ideation and execution — compress the operational middle, protect the thinking.** The machine handles logistics (formatting, boilerplate, cross-referencing); the human retains judgment (what to claim, what to show, what matters). Three design commitments are shared across the family:
+
+1. **Empirical foundations.** Each skill's workflow was extracted from forensic analysis of actual research practice — tracked edits, real figure iterations, observed survey strategies — not invented from first principles. The writing skill's editorial principles, for example, were distilled from 7,600+ tracked edits across six papers (see [*The Paper Behind the Paper*](https://sites.cs.ucsb.edu/~arpitgupta/blog/the-paper-behind-the-paper.html)).
+2. **Structured externalization.** Vague intuitions become concrete, inspectable statements before any execution begins. In this skill, that is the `braindump.md`; in the survey skill, it is the intent document; in the writing skill, it is the 34-question brainstorm.
+3. **Clean human–machine division.** Each skill draws an explicit line: judgment stays with the researcher, mechanics go to the tool. The line is different in each skill, but the principle is the same.
+
+### How the skills reinforce each other
+
+The skills are independent — use any one alone — but they form a closed loop when used together:
+
+- The **survey skill's** landscape maps and competitive positioning feed directly into the paper's related work and introduction. Its claim extraction — built on the invariant questions from [*A First-Principles Approach to Networked Systems*](https://sites.cs.ucsb.edu/~arpitgupta/first-principles-networking/) — identifies gaps that motivate new contributions.
+- The **visualization skill's** exploration phase can reshape what claims are defensible — a figure that contradicts your hypothesis changes the paper's argument, not just the evaluation section. The WALTER narration from `/viz analyze` provides ready-made figure descriptions for the paper.
+- The **writing skill** sharpens reading and vice versa: writing a precise claim reveals what evidence is missing; reading with the six-move introduction formula in mind reveals how other authors positioned their work.
+
+All three skills also share the **WALTER principle** as a common thread — the survey skill uses it during deep reading to analyze figures in papers you're reviewing, this skill uses it to narrate your own figures, and the writing skill uses it to ensure figure references in the text faithfully represent what the figure shows.
+
 ## Intellectual Lineage
 
 | Source | Contribution | Where it appears |
