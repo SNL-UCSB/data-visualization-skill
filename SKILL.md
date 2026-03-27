@@ -46,7 +46,7 @@ Once you understand the data and question, ask:
 > 7. **Who is the audience for this figure?** Is this for your own exploration notebook, a Slack message to your advisor, a paper draft, or a presentation? The standards are different for each.
 > 8. **If this is for a paper: what is the one sentence this figure supports?** Can you point to the exact claim in the text? If not, the figure may be premature.
 
-### Step 4: Synthesize and confirm
+### Step 4: Synthesize, confirm, and save braindump
 
 Summarize what you have learned back to the student in 3–4 sentences:
 
@@ -54,15 +54,40 @@ Summarize what you have learned back to the student in 3–4 sentences:
 
 Ask: "Does that capture it? Anything missing or wrong?"
 
-If the student confirms, tell them they are ready for `/viz plan`. If there are gaps, ask follow-up questions until the intent is clear.
+If the student confirms, save the synthesis as a `braindump.md` file in the working directory, then tell them they are ready for `/viz plan`. If there are gaps, ask follow-up questions until the intent is clear.
 
-**Output of brainstorm mode:** A clear, shared understanding of what the visualization is trying to communicate. No files yet — this lives in the conversation.
+**Output of brainstorm mode:** A `braindump.md` file that captures the full brainstorm synthesis. This file serves as durable context that carries forward into plan and execute modes — the student (or a new conversation) can pick up from here without losing any of the thinking.
+
+```markdown
+# Visualization Braindump
+
+## Data
+- **What is the data?** [description of observations, batches/groups, scale]
+
+## Question
+- **Core question:** [the question about the world this figure addresses]
+- **Exploring or confirming?** [exploration vs. supporting a known claim]
+
+## Predictions
+- **Expected pattern:** [what the student expects to see and why]
+- **Surprise condition:** [what would be unexpected — the most important diagnostic]
+- **Residual structure:** [what remains after removing the obvious pattern]
+
+## Audience & Argument
+- **Audience:** [exploration notebook / advisor update / paper figure / talk slide]
+- **Paper claim (if applicable):** [the exact sentence this figure supports]
+
+## Synthesis
+[3–4 sentence summary of the visualization intent, written in plain language]
+```
 
 ---
 
 ## Mode 2: Plan — "How should we realize it?"
 
 **Purpose:** Translate the intellectual intent from brainstorm mode into concrete technical decisions: plot type, layout, data source, and visual encoding. This mode produces a `plot_context.md` file that contains everything needed for execution.
+
+**First:** Look for a `braindump.md` in the working directory. If one exists, read it to load the brainstorm context. If none exists and the student hasn't completed brainstorm mode, suggest they run `/viz brainstorm` first. If the student wants to skip brainstorm, proceed but note that the plan will be weaker without upfront thinking.
 
 ### Step 1: Locate and inspect the data
 
