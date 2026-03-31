@@ -138,6 +138,8 @@ Tell the student: "Your data summary is saved at [path]. Run `/viz explore` to s
 
 **This mode generates code and plots, but they are explicitly disposable.** Do not apply publication formatting. Use seaborn defaults for speed. The goal is to *see*, not to *present*.
 
+**CRITICAL: Explore-mode code must NOT be carried into production figures.** The most common source of style violations in paper figures is copying exploration code (which uses `sns.set_theme()` and seaborn defaults) into the final plotting script. `sns.set_theme()` overrides all matplotlib rcParams — it resets fonts to sans-serif, changes gridline colors, and overrides spine settings. Explore-mode code is disposable by design. When you move to Execute mode, write the production script from scratch using the lab's rcParams setup, not by modifying explore-mode code.
+
 **Seaborn is the primary tool for this mode.** It provides high-level functions that generate informative plots with minimal code — exactly what you need for fast exploration. The [seaborn tutorial](https://seaborn.pydata.org/tutorial.html) is an excellent reference for understanding what each function does and when to use it.
 
 **First:** Look for a `data_summary.md` in the working directory. If one exists, read it to understand the schema. If not, do a quick schema read (as in Ingest Step 3) before proceeding.
@@ -400,7 +402,7 @@ Based on the brainstorm intent AND the data schema, recommend a plot type using 
 
 - **Use seaborn when:** You need to compare distributions across groups (catplot, displot), show relationships with automatic grouping (relplot), or want quick exploratory faceted plots (FacetGrid). Seaborn excels at: violin plots (`violinplot`), swarm plots (`swarmplot`), pair plots (`pairplot`), heatmaps (`heatmap`), joint distributions (`jointplot`), and KDE overlays (`kdeplot`).
 - **Use matplotlib when:** You need pixel-level control for camera-ready figures, custom CDF/CCDF functions, dual y-axes, or specific SIGCOMM/NSDI formatting. Matplotlib is better for: final paper figures with precise sizing, custom annotation placement, and reproducible style via rcParams.
-- **Use both when:** Explore with seaborn first (fast iteration, automatic semantics), then port to matplotlib for the final paper figure (precise control, golden ratio, conference formatting).
+- **Use both when:** Explore with seaborn first (fast iteration, automatic semantics), then port to matplotlib for the final paper figure (precise control, golden ratio, conference formatting). **Warning:** If you use seaborn in the final figure, do NOT call `sns.set_theme()` — it overrides all rcParams (fonts, gridlines, spines). Instead, import seaborn and use its plotting functions (e.g., `sns.heatmap()`) while relying on matplotlib rcParams for styling. See Execute mode for the correct setup.
 
 Present your recommendation with reasoning:
 
@@ -480,33 +482,60 @@ Ask the student for the path to their `plot_context.md`, or look for one in the 
 
 Write a self-contained Python script that:
 
-1. **Imports and setup** — Use the lab's standard rcParams configuration:
+1. **Imports and setup** — Use the lab's standard configuration. **CRITICAL: Do NOT call `sns.set_theme()` in production code.** `sns.set_theme()` overrides all rcParams — it resets fonts to sans-serif, changes gridline colors to seaborn's pink/salmon tint, and overrides spine settings. This is the #1 source of style violations in paper figures. If you need seaborn plotting functions (e.g., `sns.heatmap`, `sns.kdeplot`), import seaborn but configure it through matplotlib's rcParams, which seaborn respects when `set_theme()` is not called.
+
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import pandas as pd
-import seaborn as sns
+import seaborn as sns  # DO NOT call sns.set_theme() — it overrides rcParams
 from palettable.colorbrewer.qualitative import Set1_9, Paired_12
 from cycler import cycler
 
-# SIGCOMM-quality defaults
-plt.rcParams['figure.figsize'] = (3.5, 2.6)  # Adjust per plot_context.md
-plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.size'] = 9
-plt.rcParams['axes.labelsize'] = 9
-plt.rcParams['xtick.labelsize'] = 8
-plt.rcParams['ytick.labelsize'] = 8
-plt.rcParams['legend.fontsize'] = 8
-plt.rcParams['figure.dpi'] = 300
-plt.rcParams['savefig.dpi'] = 300
-plt.rcParams['axes.linewidth'] = 0.5
-plt.rcParams['lines.linewidth'] = 1.0
-plt.rcParams['lines.markersize'] = 3
-plt.rcParams['figure.constrained_layout.use'] = True
-colors = Set1_9.mpl_colors
-plt.rcParams['axes.prop_cycle'] = cycler(color=colors)
+# Lab-standard defaults (SIGCOMM/NSDI quality)
+# These MUST be set AFTER imports and WITHOUT calling sns.set_theme()
+plt.rcParams.update({
+    'figure.figsize': (3.5, 2.6),       # Adjust per plot_context.md
+    'font.family': 'serif',
+    'font.serif': ['Times New Roman', 'Times', 'DejaVu Serif'],
+    'font.size': 9,
+    'axes.labelsize': 9,
+    'xtick.labelsize': 8,
+    'ytick.labelsize': 8,
+    'legend.fontsize': 8,
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+    'axes.linewidth': 0.5,
+    'lines.linewidth': 1.0,
+    'lines.markersize': 3,
+    'figure.constrained_layout.use': True,
+    'axes.spines.top': False,            # Remove top spine
+    'axes.spines.right': False,          # Remove right spine
+    'axes.grid': True,                   # Enable grid
+    'grid.linestyle': ':',               # Dotted gridlines
+    'grid.linewidth': 0.5,
+    'grid.alpha': 0.5,
+    'grid.color': '#cccccc',             # Light gray, NOT seaborn's pink
+    'axes.prop_cycle': cycler(color=Set1_9.mpl_colors),
+})
 ```
+
+**Why `rcParams.update()` instead of individual assignments:** A single `update()` call is atomic — it applies all settings at once, reducing the chance of partial application if an error occurs partway through. It also makes the configuration block easy to copy as a unit.
+
+**If you must use seaborn's theming** (e.g., for heatmaps where seaborn controls the colorbar), configure it explicitly without calling the bare `set_theme()`:
+```python
+# ONLY if you need seaborn theme functions — set AFTER rcParams
+sns.set_theme(style="ticks", font="serif", rc={
+    'font.family': 'serif',
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'grid.color': '#cccccc',
+    'grid.alpha': 0.5,
+    'grid.linestyle': ':',
+})
+```
+This passes lab-standard overrides through seaborn's own API, preventing the defaults from stomping your configuration.
 
 2. **Load and filter data** — Read from the path in plot_context.md, apply any filtering.
 
@@ -714,3 +743,4 @@ These are non-negotiable for any paper figure produced by this skill:
 - **Legend:** Inside plot when space allows; outside right otherwise; multi-column above for many entries
 - **Booktabs:** Tables use \toprule/\midrule/\bottomrule only
 - **Captions:** Interpretive, not descriptive. State the takeaway, not just the axes.
+- **Seaborn hazard:** NEVER call `sns.set_theme()` in production code. It overrides all rcParams (fonts → sans-serif, grid → pink/salmon, spines → all visible). This is the single most common source of style violations. Import seaborn for its plotting functions; control styling through matplotlib rcParams only.
