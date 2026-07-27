@@ -62,14 +62,28 @@ artwork: matplotlib `ax.set_title(...)` / `fig.suptitle(...)`, an SVG `<text>` h
 - **Verify:** grep SVG for a top-anchored `<text>`; scan the rasterized page for a heading above the
   artwork.
 
-**F4. Font size = body text; ONE font family across all figures.** Figure text sits at body size
-(rule of thumb — a label should look the same size as running text, not shrunken or blown up), and
-every figure in the document uses the **same** family (per F0 profile). Mixing a serif figure with a
-sans body, or 6pt labels in one figure and 11pt in the next, is the most common consistency tell.
-- ✗ one mermaid in the theme default sans, one SVG hand-set in Helvetica, matplotlib in Times → ✓
-  all three in the book body face at body size.
-- **Verify:** eyeball label size against caption/body text on the rasterized page; grep SVGs for
-  `font-family` and `font-size` and confirm they agree.
+**F4. Font size = body text; ONE font family, and it must MATCH THE COMPILED BODY, and it must be
+INSTALLED.** Figure text sits at body size (a label should look the same size as running text), every
+figure uses the **same** family, and that family matches the body font **of the compiled target** —
+not the font you think the document uses. Two traps that a naive check misses:
+- **Trap 1 — wrong target font.** A book's HTML theme font (e.g., Source Sans) is usually NOT its PDF
+  body font. A LaTeX PDF renders body text in a serif (Latin Modern / Computer Modern) regardless of
+  the CSS theme. Determine the body font *empirically* from the compiled file (`pdffonts`), then match
+  the figure to THAT. A sans figure on a serif PDF body is the classic mismatch.
+- **Trap 2 — silent fallback.** An SVG/mermaid that requests a font which is **not installed** for the
+  renderer (Quarto rasterizes diagrams through headless Chromium) renders in a *substitute* — on macOS
+  usually `.SFNS` / SF Pro — while the source still says the pretty name. Grepping `font-family` shows
+  the *requested* font and is blind to this. The figure looks fine on size, wrong on family.
+- ✗ SVG sets `font-family: "Source Sans 3"` (not installed) → renders SF Pro sans over a Latin Modern
+  serif body; three families fight on one page → ✓ SVG sets `"Times New Roman", Times, serif` (an
+  installed serif that matches the serif PDF body); `pdffonts` shows only body + Times, no `.SFNS`.
+- **Verify (three steps, all required):**
+  1. `pdffonts output.pdf` → note the dominant body font (its serif/sans class is what figures match).
+  2. `fc-match "<requested figure font>"` → confirm it resolves to itself, not a fallback (proves it is
+     installed for the renderer). `fc-match "Latin Modern Roman"` returning Verdana means NOT installed.
+  3. After render, `pdffonts output.pdf` again → confirm NO unexpected substitute font (`.SFNS`,
+     `SFPro`, `system-ui`, `Verdana` when you asked for a serif) appears. Its presence = a fallback fired.
+  Eyeball label size against body on the rasterized page as well.
 
 **F5. No oversized boxes; no wasted whitespace.** The canvas/viewBox is cropped to content; boxes are
 sized to their text (not a fixed oversized default); there is no large empty margin, especially on
@@ -220,8 +234,13 @@ grep -noE 'fill:#[0-9a-fA-F]{6}|fill="#[0-9a-fA-F]{6}"' "$FILE" assets/figures/*
 grep -n '^title:\|set_title\|suptitle' "$FILE" assets/figures/*.py
 grep -n '<text' assets/figures/*.svg | head   # inspect the top-anchored one for a heading
 
-# ── F4/G4: font drift inside SVGs (should all name the SAME body face at the SAME size) ──
-grep -noE 'font-family="[^"]*"|font-size="[^"]*"' assets/figures/*.svg | sort | uniq -c
+# ── F4/G4: font drift inside SVGs (should all name the SAME face at the SAME size) ──
+grep -nohE 'font-family:[^;"}]*|font-family="[^"]*"' assets/figures/*.svg "$FILE" | sort | uniq -c
+#   Then for EACH distinct requested family, confirm it is actually installed (else it falls back):
+#     fc-match "Source Sans 3"      # if this returns a DIFFERENT family, the font is NOT installed
+#     fc-match "Times New Roman"    # should return Times New Roman itself
+#   And confirm the family CLASS (serif/sans) matches the compiled body font (see the pdffonts step
+#   in half B). A sans figure font on a serif PDF body is rule F4's classic failure.
 
 # ── T1: pipe tables missing a #tbl- caption (count tables vs count captions) ──
 grep -cE '^\|' "$FILE"; grep -c '#tbl-' "$FILE"   # every table block should have one #tbl-
@@ -229,6 +248,12 @@ grep -cE '^\|' "$FILE"; grep -c '#tbl-' "$FILE"   # every table block should hav
 # ============ B. Render-and-inspect (MANDATORY — this is what satisfies F1) ============
 cd cs176c-book
 quarto render "$FILE" --to pdf         # standalone chapter render
+#   F4 font check on the compiled PDF: list embedded fonts, spot the body font, and catch fallbacks.
+pdffonts output.pdf
+#     - The dominant body font (e.g., LMRoman* = Latin Modern serif) sets the class figures must match.
+#     - A substitute font (.SFNS / SFPro / system-ui / an unexpected Verdana) appearing means some
+#       figure requested a font the renderer did not have and it silently fell back. Fix the SVG/mermaid
+#       to a family that (a) is installed (fc-match) and (b) matches the body class, then re-render.
 #   Find each figure/table's page (search the PDF text or scan the outline), then for page P:
 pdftoppm -png -r 150 -f P -l P ch06_transport_v1.pdf /tmp/ch06_p          # -> /tmp/ch06_p-PP.png
 #   OPEN each PNG and read it. For every figure and table, confirm and REPORT:
