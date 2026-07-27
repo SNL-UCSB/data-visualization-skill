@@ -403,6 +403,7 @@ Based on the brainstorm intent AND the data schema, recommend a plot type using 
 - **Use seaborn when:** You need to compare distributions across groups (catplot, displot), show relationships with automatic grouping (relplot), or want quick exploratory faceted plots (FacetGrid). Seaborn excels at: violin plots (`violinplot`), swarm plots (`swarmplot`), pair plots (`pairplot`), heatmaps (`heatmap`), joint distributions (`jointplot`), and KDE overlays (`kdeplot`).
 - **Use matplotlib when:** You need pixel-level control for camera-ready figures, custom CDF/CCDF functions, dual y-axes, or specific SIGCOMM/NSDI formatting. Matplotlib is better for: final paper figures with precise sizing, custom annotation placement, and reproducible style via rcParams.
 - **Use both when:** Explore with seaborn first (fast iteration, automatic semantics), then port to matplotlib for the final paper figure (precise control, golden ratio, conference formatting). **Warning:** If you use seaborn in the final figure, do NOT call `sns.set_theme()` — it overrides all rcParams (fonts, gridlines, spines). Instead, import seaborn and use its plotting functions (e.g., `sns.heatmap()`) while relying on matplotlib rcParams for styling. See Execute mode for the correct setup.
+- **Use TikZ when the figure has no underlying data.** Pipelines, system architectures, decision flows, interface diagrams are schematic, not data-driven, and belong in TikZ inside the LaTeX source — not matplotlib. The Brainstorm and Plan modes still apply (what is the figure showing? what should the reader take away in 5 seconds?), but Execute is `\begin{tikzpicture}`, not `plt`. For HotNets/SIGCOMM conventions on horizontal pipeline figures (orientation, box style, decision-node anti-pattern, sidecar/branch idioms, anti-patterns including diamonds, diagonal arrows, saturated colors, and TikZ-keyword name collisions), see `reference/tikz_pipeline_figures.md`.
 
 Present your recommendation with reasoning:
 
@@ -554,9 +555,30 @@ This passes lab-standard overrides through seaborn's own API, preventing the def
 
 Execute the script. If it fails, diagnose and fix. If the data path is wrong or the schema doesn't match, tell the student what went wrong and how to fix it.
 
-Once the figure is generated, tell the student: "Your figure is saved at [path]. Run `/viz analyze` to reflect on what it shows and validate it against your hypothesis."
+### Step 4: Run the Figure Presentation Gate (MANDATORY — do not skip)
 
-**Output of execute mode:** A saved figure and the Python script that generated it.
+A figure is not "done" when the script runs. It is done when it **passes the numbered, output-verified
+gate** in `reference/figure_presentation_gate.md`. This gate is to figures what `/paper-writing`'s
+M1–M18 mechanical gate is to prose: numbered rules (F = universal, D = data figures, G = mermaid/SVG
+diagrams, T = tables) with a **runnable render-and-inspect procedure**. Prose "lab standards" alone
+never gated anything — this step is the gate.
+
+1. **Declare the target medium (F0)** — Book/PDF (Quarto, grayscale, body sans font) or Conference
+   paper (LaTeX, one colorblind-safe scheme, serif). It sets the color (F6) and font (F4) defaults.
+2. **Run Part E of the gate** — the source pre-screen greps AND the mandatory render → rasterize
+   (`pdftoppm`) → open-and-read step. Verify in the **compiled PDF**, not the source and not a
+   browser preview.
+3. **Report what you saw, per the gate's report format** — "inspected p.N, Fig X: number ✓, no
+   title ✓, grayscale ✓, boxes tight ✓, font=body ✓," not "looks good." Every gate item is fixed or
+   explicitly justified before the figure is reported done.
+
+**This gate governs diagram figures (mermaid/SVG) and tables too, not only matplotlib data plots** —
+a bare ```` ```{mermaid} ```` block, a hand-authored SVG, and a pipe table all pass through the same
+F/G/T rules (numbering, grayscale, no baked-in title, font = body, tight boxes, no wrapped table
+headers). For a non-data figure there is no plotting script to run; you go straight to Step 4.
+
+**Output of execute mode:** A saved figure, the script (if any) that generated it, and a gate report
+showing every F/D/G/T item verified on a rendered PDF page.
 
 ---
 
@@ -571,6 +593,13 @@ This is the mode that turns a plotting exercise into a learning experience. With
 - **`plot_context.md`** — The design rationale, variable mappings, and intended question.
 - **`exploration_log.md`** — What the student observed during exploration (if available).
 - **The generated figure** — Read the image to analyze what it actually shows.
+
+**Precondition — the Figure Presentation Gate must already be green.** Analyze reasons about what the
+figure *says* (Tukey/Tufte/WALTER); it assumes the figure is already presentation-clean. Before the
+content critique, confirm `reference/figure_presentation_gate.md` passed in Execute Step 4 — figure
+number, no baked-in title, grayscale (Book profile), font = body, tight boxes, and (for tables)
+one-line headers, all verified on a rendered PDF page. If any gate item is still open, close it first;
+a figure that fails the gate is not ready to analyze.
 
 ### Step 1: Student interpretation first
 
@@ -729,6 +758,14 @@ What are you showing?
 ---
 
 ## Lab Standards Reference
+
+> **Authority note:** the enforceable, numbered version of these standards lives in
+> `reference/figure_presentation_gate.md` (F/D/G/T rules + a runnable render-and-inspect audit).
+> That gate is what actually gates a figure in Execute Step 4. The bullets below are the quick
+> mnemonic; when they and the gate ever disagree, the gate wins. The gate also covers what these
+> bullets historically missed: **mermaid/SVG diagram figures** and **tables** (numbering, grayscale,
+> no baked-in titles, font = body, tight boxes, no wrapped table headers), and the **Book/PDF profile**
+> (grayscale + sans body font) versus the conference-paper profile (color + serif).
 
 These are non-negotiable for any paper figure produced by this skill:
 

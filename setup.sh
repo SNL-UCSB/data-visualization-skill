@@ -13,10 +13,10 @@ mkdir -p "${SKILL_DIR}/reference"
 # Copy skill file
 cp SKILL.md "${SKILL_DIR}/SKILL.md"
 
-# Copy reference materials
-cp reference/before_you_plot.md "${SKILL_DIR}/reference/before_you_plot.md"
-cp reference/plot_context_template.md "${SKILL_DIR}/reference/plot_context_template.md"
-cp reference/matplotlib_defaults.py "${SKILL_DIR}/reference/matplotlib_defaults.py"
+# Copy ALL reference materials (copy the directory contents, not a hand-maintained list —
+# an enumerated list silently goes stale whenever a reference file is added, which is how the
+# installed copy and this repo drift apart).
+cp -R reference/. "${SKILL_DIR}/reference/"
 
 echo "Done. The /viz skill is now available in Claude Code."
 echo ""

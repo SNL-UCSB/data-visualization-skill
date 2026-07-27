@@ -140,7 +140,8 @@ data-visualization-skill/
     ├── before_you_plot.md                # 15-question pre-plotting questionnaire
     ├── cli_data_inspection.md            # CLI one-liners for raw data inspection
     ├── plot_context_template.md          # Blank template for plot_context.md
-    └── matplotlib_defaults.py            # Publication-quality rcParams + helpers
+    ├── matplotlib_defaults.py            # Publication-quality rcParams + helpers
+    └── figure_presentation_gate.md       # Numbered, output-verified figure/table gate
 ```
 
 ### `SKILL.md`
@@ -177,6 +178,18 @@ Drop-in Python module with publication-quality defaults:
 - **`plot_ccdf(data, label, log_scale)`** — CCDF with optional log-log axes for heavy tails.
 - **`plot_time_series(x, y, smooth_window)`** — Time series with optional rolling-median smoothing.
 - **`COLORS`** — Colorblind-safe palette (Set1_9 from ColorBrewer).
+
+### `reference/figure_presentation_gate.md`
+
+The enforceable, numbered figure- and table-presentation gate — to figures what a mechanical style
+gate is to prose. Where the Lab Standards in `SKILL.md` are a prose mnemonic, this file is the
+checklist that actually gates a figure in Execute mode: numbered rules (**F** universal, **D** data
+figures, **G** mermaid/SVG diagrams, **T** tables) each with a wrong→right example and a verification
+method, plus a runnable audit block. Its core discipline: **verify in the compiled PDF, not the
+source and not a browser preview** — render, rasterize the page (`pdftoppm`), open it, and report
+what you saw on which page. Covers a `target-medium` selector (book/PDF grayscale + body font vs.
+conference-paper color + serif) so the same gate serves both. This is what closes the "prose
+standards nobody enforced" gap.
 - **`MARKERS`** / **`LINE_STYLES`** — For grayscale distinguishability.
 
 Usage: `import matplotlib_defaults` auto-configures all rcParams. Or import individual helpers.
