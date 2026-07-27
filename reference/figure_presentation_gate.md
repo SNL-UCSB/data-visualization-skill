@@ -20,6 +20,31 @@ and `reference/matplotlib_defaults.py`.
 
 ---
 
+## Refinement mode — fast (one-off) vs deep (adversarial red/blue-team)
+
+Many gate items are **parametric**: table column-width ratios, figure font sizes, box/canvas
+dimensions, node spacing, legend placement. There is rarely a closed-form "right" value — the good
+value is the one that, in the *compiled* output, leaves neither wasted whitespace nor spillover. Pick
+a mode:
+
+- **Fast (one-off) — default.** Compute a sensible value once (widths ∝ content per T3, font from the
+  F4 size arithmetic), render, verify, ship. Right for a single figure or a quick pass.
+- **Deep (iterative, adversarial) — opt in for a shipped deliverable** (book chapter, camera-ready).
+  Do NOT trust the first value. Run a red/blue-team loop:
+  1. **Blue team** proposes parameter values and renders.
+  2. **Red team** adversarially inspects the *rendered PDF* for BOTH failure directions at once —
+     residual whitespace (a column or margin wider than its content) AND spillover (a wrapped header, a
+     mid-word break, an axis label over the ticks, an oversized/ragged box) — and proposes a counter-move.
+  3. Repeat until neither team can improve it (convergence), not until it merely "looks fine" on pass 1.
+     A single pass tends to fix one direction and miss the other.
+  Drive it with `/loop` (iterate to convergence) and, when available, an independent `codex` critic as a
+  second red team, so the final params are not one model's one-off preference. Log what converged and why.
+
+Use the deep mode for whitespace/column-width optimization and figure parametric choices whenever the
+figure or table is part of a shipped artifact.
+
+---
+
 ## F0. Declare the target medium FIRST (it sets two defaults)
 
 Before auditing, state the medium. It parameterizes exactly two rules — **color (F6)** and **font
@@ -27,7 +52,7 @@ family (F4)** — everything else is universal.
 
 | Profile | Color default (F6) | Font family (F4) | Figure/table numbering |
 |:--|:--|:--|:--|
-| **Book / PDF (Quarto)** — this project's default | **Grayscale.** Color only when it carries information grayscale + markers/line-styles cannot. | The book **body** face (sans-serif: Source Sans Pro). Figures match body, not a serif import. | Quarto floats: `#fig-…` / `#tbl-…` + caption |
+| **Book / PDF (Quarto)** — this project's default | **Grayscale.** Color only when it carries information grayscale + markers/line-styles cannot. | Match the **compiled PDF body** (serif — Latin Modern). Use an **installed** serif in figures (`"Times New Roman", Times, serif`); do NOT request the HTML theme font (Source Sans / Inter) — it is not installed and silently falls back to SF Pro. Verify with `pdffonts` (F4). | Quarto floats: `#fig-…` / `#tbl-…` + caption |
 | **Conference paper (LaTeX)** | One colorblind-safe scheme allowed; still grayscale-distinguishable via markers + line styles. | The paper's body serif (Times). | `\label{fig:…}` / `\label{tab:…}` + `\caption` |
 
 If the medium is unstated and a `.qmd`/`_quarto.yml` is present, assume **Book / PDF**. If `.tex`,
@@ -92,13 +117,20 @@ not the font you think the document uses. Two traps that a naive check misses:
   rasterized page, not just one — a chapter mixes matplotlib (points, correct) with hand-SVGs (units,
   usually too small), and fixing one figure while leaving the siblings tiny is its own inconsistency.
 
-**F5. No oversized boxes; no wasted whitespace.** The canvas/viewBox is cropped to content; boxes are
-sized to their text (not a fixed oversized default); there is no large empty margin, especially on
-the right of flowcharts and pipe diagrams. Whitespace is deliberate, not leftover.
-- ✗ a `flowchart TD` with a wide empty right third; an SVG `viewBox` 200px taller than the drawing →
-  ✓ tighten `nodeSpacing`/`rankSpacing`, crop the `viewBox`/`width`/`height` to the bounding box.
+**F5. No oversized boxes; no wasted whitespace; peer boxes are UNIFORM.** The canvas/viewBox is
+cropped to content; boxes are sized to their text (not a fixed oversized default); there is no large
+empty margin, especially on the right of flowcharts and pipe diagrams; and **a set of peer boxes
+(the stages of a pipeline, the nodes of a chain) are all the SAME width and height** so the eye is
+not distracted by ragged sizing. Whitespace is deliberate, not leftover.
+- ✗ a `flowchart TD` with a wide empty right third; an SVG `viewBox` 200px taller than the drawing;
+  four chain boxes each auto-sized to their own label so all four differ in width → ✓ tighten
+  `nodeSpacing`/`rankSpacing`, crop the `viewBox` to the bounding box, and give peer boxes one common
+  width (size to the longest label). **Mermaid cannot force uniform node width** — when peers must be
+  uniform, author the diagram as an SVG (or TikZ) with an explicit shared box size rather than fighting
+  mermaid's content-sizing.
 - **Verify:** on the rasterized page, the artwork should touch (near) all four inner margins of its
-  float; flag any band of empty pixels wider than one line of text.
+  float; flag any band of empty pixels wider than one line of text; confirm peer boxes share one
+  width and height.
 
 **F6. Grayscale-first (Book profile) / one scheme (Paper profile).** Pick ONE color scheme and keep
 it identical across ALL figures. Under the Book profile that scheme is grayscale; introduce a hue
@@ -110,11 +142,18 @@ use red/green/blue as decorative node fills.
 - **Verify:** grep mermaid/SVG for non-gray hex fills; confirm on the page that a grayscale print is
   still readable.
 
-**F7. Legible at print size.** Readable at the intended column width (single ≈ 3.5 in, double ≈ 7 in,
-book text column per the theme). No overlapping tick labels, no text colliding with a box edge, no
-2-pt lines that vanish.
-- **Verify:** read the rasterized page at 100%; if a label is unreadable there, it is unreadable in
-  print.
+**F7. Legible at print size; axis labels clear of the ticks; no unexplained jargon.** Readable at the
+intended column width (single ≈ 3.5 in, double ≈ 7 in, book text column per the theme). No overlapping
+tick labels, no text colliding with a box edge, no 2-pt lines that vanish. Two specific traps:
+- **Axis title vs tick numbers.** An axis title placed too close to the tick row runs over the numbers.
+  ✗ `Time (RTTs)` baseline 15 px below a 26 px tick row → they overlap → ✓ leave a full line of clearance
+  (the title sits below the tick numbers, not on them). Check both axes on the rasterized page.
+- **Spell out jargon for the reader the figure targets.** An axis or box label is read cold, without the
+  surrounding prose that defined the term. Prefer the spelled-out form for a teaching figure.
+  ✗ y-axis `cwnd (packets)` → ✓ `congestion window (packets)`. (Keep the terse token only where space is
+  truly binding and the term is defined right beside the figure.)
+- **Verify:** read the rasterized page at 100%; if a label is unreadable or an abbreviation would stop
+  an unversed reader, fix it. Confirm each axis title has clear space from its tick numbers.
 
 **F8. Interpretive caption.** The caption states the takeaway, not just the axes/parts. It should be
 readable standalone by someone skimming figures.
@@ -215,11 +254,23 @@ column, or split the table — so every header sits on one line.
   ("BW", "RTT", "BDP", "Regime", "Effect") and/or drop a column.
 - **Verify:** on the rasterized page, read every header cell — each must occupy exactly one line.
 
-**T3. No wasted whitespace / no over-wide columns.** Compress cells so the critical term in each cell
-fits on line 1 (the whitespace-optimization rule from the Ch6 v8 pass); no column is padded far wider
-than its widest real value.
+**T3. Column widths proportional to content, floored at the longest word.** The failure mode is
+"spillover and whitespace at once": a short-label column (e.g. `Layer`) is given the same width as a
+long-text column, so the label column wastes space while the text column wraps. Set each column's width
+**proportional to its content**, but **floor every column at its longest single word** so a short column
+never breaks mid-word (`Environ-`/`ment`).
+- Mechanism (Pandoc/Quarto pipe tables): the separator dash counts set relative column widths. Make
+  `dashes_i ∝ width_i`, where `width_i = max(longest_word_i, allocated_share_i)` and the allocated share
+  distributes the leftover line width (after every column gets its longest word) proportional to
+  `max_content_i − longest_word_i`.
+- ✗ `|:------|:------|:------|` (equal) on a Layer/What-has/What-missing table → ✓ `|:------|:-----------------|:-------------|`
+  (narrow Layer, wide middle). If one cell is genuinely too long for any split, shorten the cell or the
+  header (e.g. `TCP Answer After Jacobson (1988)` → `TCP Answer (1988)`) rather than let it wrap.
+- This is a **parametric** choice — see the red/blue-team refinement note at the top: a one-off ratio is
+  fast but often locally suboptimal; the deep mode iterates render→inspect→adjust until neither residual
+  whitespace nor spillover can be reduced.
 - **Verify:** scan the page for columns with large empty right space, and for any cell whose key term
-  wrapped to line 2.
+  wrapped to line 2; confirm no header or short-label cell breaks mid-word.
 
 **T4. No bad page break.** A table must not split awkwardly across a page boundary (header on one
 page, body on the next; or a 6-row table straddling two pages). Keep it together, move it, or split
