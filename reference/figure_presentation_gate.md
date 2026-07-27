@@ -84,6 +84,13 @@ not the font you think the document uses. Two traps that a naive check misses:
   3. After render, `pdffonts output.pdf` again → confirm NO unexpected substitute font (`.SFNS`,
      `SFPro`, `system-ui`, `Verdana` when you asked for a serif) appears. Its presence = a fallback fired.
   Eyeball label size against body on the rasterized page as well.
+- **Trap 3 — the SVG-canvas size illusion.** A `font-size` in SVG units is NOT points. The rendered
+  point size is `svg_font_px × (placed_width / viewBox_width)`. A hand-authored SVG on a 1000–1200 unit
+  canvas placed at ~5 in scales by ~0.3, so a "13px" label renders at ~4–5 pt — half body size and hard
+  to read — even though 13 "looks normal" in the source. **Compute the target:** to hit ~11 pt body over
+  a 1000-unit canvas at 5 in, set ~30 px; over a 1200-unit canvas, ~34 px. Check EVERY figure on the
+  rasterized page, not just one — a chapter mixes matplotlib (points, correct) with hand-SVGs (units,
+  usually too small), and fixing one figure while leaving the siblings tiny is its own inconsistency.
 
 **F5. No oversized boxes; no wasted whitespace.** The canvas/viewBox is cropped to content; boxes are
 sized to their text (not a fixed oversized default); there is no large empty margin, especially on
@@ -114,6 +121,18 @@ readable standalone by someone skimming figures.
 - ✗ "Figure 6.4: BDP pipe diagram." → ✓ "Figure 6.4: Below the bandwidth-delay product the pipe runs
   underfilled and capacity is wasted; above it the buffer overflows into queuing delay."
 - **Verify:** read the caption alone — does it carry a claim?
+
+**F9. Caption layout: flush-left, full-width, no hanging indent.** The default LaTeX caption format is
+`hang` — every continuation line is indented under the label ("Figure 6.4:"), wasting the whole left
+column on multi-line captions, and short captions get centered. For a text-heavy book this is visible
+wasted whitespace on every wrapped caption.
+- ✗ continuation lines indented under the label; single-line captions centered → ✓ flush-left, running
+  the full text width. In Quarto/LaTeX, add to the header:
+  `\usepackage{caption}\captionsetup{format=plain, justification=raggedright, singlelinecheck=false, margin=0pt}`
+  (put it in `_quarto.yml`'s pdf `include-in-header` for the whole book, or the chapter YAML for a
+  standalone render).
+- **Verify:** on the rasterized page, every caption's second and later lines start at the same left
+  margin as the first, and short captions are left-aligned, not centered.
 
 ---
 
